@@ -114,6 +114,11 @@
                             class="w-full px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-sm">
                     </div>
                     
+                    <div>
+                        <textarea id="eventDescription" placeholder="Description (Optional)" rows="2"
+                            class="w-full px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-sm resize-none"></textarea>
+                    </div>
+                    
                     <div class="flex gap-1.5 sm:gap-2">
                         <div class="flex-1">
                             <label class="text-[9px] sm:text-[10px] text-gray-500 uppercase font-semibold block mb-0.5 sm:mb-1">Start</label>
@@ -290,6 +295,7 @@
                     events[dateString].push({
                         id: doc.id,
                         title: data.title,
+                        description: data.description || '', // Safely load description
                         startTime: data.startTime || data.time, // Using data.time as fallback for any old events
                         endTime: data.endTime,
                         color: data.color
@@ -543,15 +549,18 @@
                     const colorClasses = colorMap[evt.color] || colorMap.blue;
                     
                     const item = document.createElement('div');
-                    item.className = `flex justify-between items-center p-2 rounded-lg border ${colorClasses} bg-opacity-50`;
+                    item.className = `flex flex-col p-2 rounded-lg border ${colorClasses} bg-opacity-50`;
                     
+                    const headerRow = document.createElement('div');
+                    headerRow.className = 'flex justify-between items-start w-full';
+
                     const info = document.createElement('div');
                     info.className = 'flex items-center gap-2 overflow-hidden';
                     
                     const timeDisplay = window.getTimeDisplay(evt.startTime, evt.endTime);
                     if (timeDisplay) {
                         const timeSpan = document.createElement('span');
-                        timeSpan.className = 'font-bold text-xs opacity-75 whitespace-nowrap';
+                        timeSpan.className = 'font-bold text-xs opacity-75 whitespace-nowrap mt-0.5';
                         timeSpan.textContent = timeDisplay;
                         info.appendChild(timeSpan);
                     }
@@ -561,16 +570,25 @@
                     titleSpan.textContent = evt.title;
                     info.appendChild(titleSpan);
                     
-                    item.appendChild(info);
+                    headerRow.appendChild(info);
                     
                     if (isAdmin) {
                         const delBtn = document.createElement('button');
-                        delBtn.className = 'text-current opacity-60 hover:opacity-100 transition p-1';
+                        delBtn.className = 'text-current opacity-60 hover:opacity-100 transition p-1 shrink-0';
                         delBtn.innerHTML = '<i class="fa-solid fa-trash-can text-sm"></i>';
                         delBtn.onclick = () => window.deleteEvent(evt.id);
-                        item.appendChild(delBtn);
+                        headerRow.appendChild(delBtn);
                     }
                     
+                    item.appendChild(headerRow);
+
+                    if (evt.description) {
+                        const desc = document.createElement('p');
+                        desc.className = 'text-xs mt-1.5 opacity-90 whitespace-pre-wrap break-words';
+                        desc.textContent = evt.description;
+                        item.appendChild(desc);
+                    }
+
                     listContainer.appendChild(item);
                 });
             }
@@ -605,6 +623,7 @@
 
             const dateString = document.getElementById('selectedDateInput').value;
             const title = document.getElementById('eventTitle').value.trim();
+            const description = document.getElementById('eventDescription').value.trim();
             const startTime = document.getElementById('eventStartTime').value;
             const endTime = document.getElementById('eventEndTime').value;
             const color = document.getElementById('eventColor').value;
@@ -616,6 +635,7 @@
                 await addDoc(eventsRef, {
                     date: dateString,
                     title,
+                    description,
                     startTime,
                     endTime,
                     color,
