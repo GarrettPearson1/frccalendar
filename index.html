@@ -143,22 +143,24 @@
         </div>
     </div>
 
-    <!-- Password Modal -->
-    <div id="passwordModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4 opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300" id="passwordModalContent">
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300" id="loginModalContent">
             <div class="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center">
-                <h3 class="font-bold text-lg text-gray-900">Admin Access</h3>
-                <button onclick="closePasswordModal()" class="text-gray-400 hover:text-gray-700 p-2 rounded-full hover:bg-gray-200 transition">
+                <h3 class="font-bold text-lg text-gray-900">Admin Login</h3>
+                <button onclick="closeLoginModal()" class="text-gray-400 hover:text-gray-700 p-2 rounded-full hover:bg-gray-200 transition">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
             <div class="p-4 bg-white">
-                <form id="passwordForm" onsubmit="verifyPassword(event)" class="flex flex-col gap-3">
-                    <input type="password" id="adminPasswordInput" placeholder="Enter password" required
+                <form id="loginForm" onsubmit="loginAdmin(event)" class="flex flex-col gap-3">
+                    <input type="email" id="adminEmailInput" placeholder="Email address" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-                    <p id="passwordError" class="text-red-500 text-sm hidden">Incorrect password.</p>
+                    <input type="password" id="adminPasswordInput" placeholder="Password" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <p id="loginError" class="text-red-500 text-sm hidden">Invalid login.</p>
                     <button type="submit" class="w-full mt-2 bg-blue-600 text-white font-medium py-2.5 rounded-lg hover:bg-blue-700 transition shadow-sm">
-                        Unlock
+                        Log In
                     </button>
                 </form>
             </div>
@@ -174,7 +176,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Your web app's Firebase configuration
@@ -251,6 +253,16 @@
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             if (user) {
+                // If they are logged in with a real account (not anonymous), they are an admin!
+                if (!user.isAnonymous) {
+                    isAdmin = true;
+                    document.getElementById('adminToggle').innerHTML = '<i class="fa-solid fa-unlock text-blue-600"></i> Admin';
+                    document.getElementById('adminToggle').classList.add('bg-blue-50', 'text-blue-600', 'border-blue-200');
+                } else {
+                    isAdmin = false;
+                    document.getElementById('adminToggle').innerHTML = '<i class="fa-solid fa-lock"></i> Viewer';
+                    document.getElementById('adminToggle').classList.remove('bg-blue-50', 'text-blue-600', 'border-blue-200');
+                }
                 loadEvents();
             } else if (unsubscribeEvents) {
                 unsubscribeEvents();
@@ -297,29 +309,30 @@
         // Admin Toggle Logic
         document.getElementById('adminToggle').addEventListener('click', () => {
             if (!isAdmin) {
-                openPasswordModal();
+                window.openLoginModal();
             } else {
-                isAdmin = false;
-                document.getElementById('adminToggle').innerHTML = '<i class="fa-solid fa-lock"></i> Viewer';
-                document.getElementById('adminToggle').classList.remove('bg-blue-50', 'text-blue-600', 'border-blue-200');
-                renderCalendar();
-                
-                // Re-evaluate modal state if open
-                const modal = document.getElementById('eventModal');
-                if (!modal.classList.contains('hidden')) {
-                    const dateString = document.getElementById('selectedDateInput').value;
-                    const dateParts = dateString.split('-');
-                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                    openModal(dateString, parseInt(dateParts[2]), monthNames[parseInt(dateParts[1])-1], dateParts[0]);
-                }
+                // Log out of the admin account
+                signOut(auth).then(() => {
+                    window.showToast("Logged out of admin mode.", false);
+                    signInAnonymously(auth); // Fall back to viewer mode
+                    
+                    // Re-evaluate modal state if open
+                    const modal = document.getElementById('eventModal');
+                    if (!modal.classList.contains('hidden')) {
+                        const dateString = document.getElementById('selectedDateInput').value;
+                        const dateParts = dateString.split('-');
+                        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                        window.openModal(dateString, parseInt(dateParts[2]), monthNames[parseInt(dateParts[1])-1], dateParts[0]);
+                    }
+                });
             }
         });
 
-        window.openPasswordModal = function() {
-            const modal = document.getElementById('passwordModal');
-            const modalContent = document.getElementById('passwordModalContent');
-            document.getElementById('passwordError').classList.add('hidden');
-            document.getElementById('passwordForm').reset();
+        window.openLoginModal = function() {
+            const modal = document.getElementById('loginModal');
+            const modalContent = document.getElementById('loginModalContent');
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('loginForm').reset();
             
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -328,12 +341,12 @@
             modalContent.classList.remove('scale-95');
             modalContent.classList.add('scale-100');
             
-            setTimeout(() => document.getElementById('adminPasswordInput').focus(), 100);
+            setTimeout(() => document.getElementById('adminEmailInput').focus(), 100);
         }
 
-        window.closePasswordModal = function() {
-            const modal = document.getElementById('passwordModal');
-            const modalContent = document.getElementById('passwordModalContent');
+        window.closeLoginModal = function() {
+            const modal = document.getElementById('loginModal');
+            const modalContent = document.getElementById('loginModalContent');
             
             modal.classList.add('opacity-0');
             modalContent.classList.remove('scale-100');
@@ -345,27 +358,29 @@
             }, 300);
         }
 
-        window.verifyPassword = function(e) {
+        window.loginAdmin = async function(e) {
             e.preventDefault();
-            const input = document.getElementById('adminPasswordInput').value;
+            const email = document.getElementById('adminEmailInput').value;
+            const password = document.getElementById('adminPasswordInput').value;
+            const errorElement = document.getElementById('loginError');
             
-            if (input === 'D3mryJ@v@Sl1d3:)') {
-                isAdmin = true;
-                document.getElementById('adminToggle').innerHTML = '<i class="fa-solid fa-unlock text-blue-600"></i> Admin';
-                document.getElementById('adminToggle').classList.add('bg-blue-50', 'text-blue-600', 'border-blue-200');
-                closePasswordModal();
-                renderCalendar();
+            // Hide error initially on new attempt
+            errorElement.classList.add('hidden');
+            
+            try {
+                // Ask Firebase to log in
+                await signInWithEmailAndPassword(auth, email, password);
                 
-                // Re-evaluate modal state if open
-                const modal = document.getElementById('eventModal');
-                if (!modal.classList.contains('hidden')) {
-                    const dateString = document.getElementById('selectedDateInput').value;
-                    const dateParts = dateString.split('-');
-                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                    openModal(dateString, parseInt(dateParts[2]), monthNames[parseInt(dateParts[1])-1], dateParts[0]);
-                }
-            } else {
-                document.getElementById('passwordError').classList.remove('hidden');
+                window.closeLoginModal();
+                window.showToast("Admin access granted!", false);
+                
+                // Note: The UI updates (making buttons appear) will trigger automatically 
+                // thanks to the onAuthStateChanged listener!
+                
+            } catch (error) {
+                console.error("Login failed:", error);
+                errorElement.textContent = "Invalid email or password.";
+                errorElement.classList.remove('hidden');
             }
         }
 
@@ -428,7 +443,7 @@
                 const cell = document.createElement('div');
                 cell.className = `calendar-cell bg-white border rounded-xl p-2 min-h-[80px] sm:min-h-[100px] cursor-pointer flex flex-col gap-1 relative overflow-hidden ${isToday ? 'border-blue-400 ring-1 ring-blue-400 bg-blue-50/10' : 'border-gray-200 hover:border-blue-300'}`;
                 
-                cell.onclick = () => openModal(dateString, i, monthNames[month], year);
+                cell.onclick = () => window.openModal(dateString, i, monthNames[month], year);
 
                 const dayHeader = document.createElement('div');
                 dayHeader.className = 'flex justify-between items-start';
@@ -449,7 +464,7 @@
                     const colorClasses = colorMap[evt.color] || colorMap.blue;
                     evtDiv.className = `text-[10px] sm:text-xs px-1.5 py-0.5 rounded border truncate font-medium ${colorClasses}`;
                     
-                    const timeDisplay = getTimeDisplay(evt.startTime, evt.endTime);
+                    const timeDisplay = window.getTimeDisplay(evt.startTime, evt.endTime);
                     const timeText = timeDisplay ? `<span class="opacity-75 mr-1 text-[9px] font-semibold">${timeDisplay}</span>` : '';
                     evtDiv.innerHTML = `${timeText}${evt.title}`;
                     eventsContainer.appendChild(evtDiv);
@@ -480,7 +495,7 @@
                 addEventSection.style.display = 'none';
             }
             
-            updateModalEventList(dateString);
+            window.updateModalEventList(dateString);
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -531,7 +546,7 @@
                     const info = document.createElement('div');
                     info.className = 'flex items-center gap-2 overflow-hidden';
                     
-                    const timeDisplay = getTimeDisplay(evt.startTime, evt.endTime);
+                    const timeDisplay = window.getTimeDisplay(evt.startTime, evt.endTime);
                     if (timeDisplay) {
                         const timeSpan = document.createElement('span');
                         timeSpan.className = 'font-bold text-xs opacity-75 whitespace-nowrap';
@@ -550,7 +565,7 @@
                         const delBtn = document.createElement('button');
                         delBtn.className = 'text-current opacity-60 hover:opacity-100 transition p-1';
                         delBtn.innerHTML = '<i class="fa-solid fa-trash-can text-sm"></i>';
-                        delBtn.onclick = () => deleteEvent(evt.id);
+                        delBtn.onclick = () => window.deleteEvent(evt.id);
                         item.appendChild(delBtn);
                     }
                     
@@ -582,7 +597,7 @@
             }
 
             if (!isAllowedDomain) {
-                showToast("Security: Cloud writes are only allowed from the official Wildcat Robotics website.", true);
+                window.showToast("Security: Cloud writes are only allowed from the official Wildcat Robotics website.", true);
                 return;
             }
 
@@ -610,7 +625,7 @@
                 document.getElementById('eventTitle').focus();
             } catch (error) {
                 console.error("Error adding event:", error);
-                showToast("Could not save event. Check permissions.");
+                window.showToast("Could not save event. Check permissions.");
             }
         }
 
@@ -632,7 +647,7 @@
             }
 
             if (!isAllowedDomain) {
-                showToast("Security: Cloud writes are only allowed from the official Wildcat Robotics website.", true);
+                window.showToast("Security: Cloud writes are only allowed from the official Wildcat Robotics website.", true);
                 return;
             }
             
@@ -641,29 +656,29 @@
                 await deleteDoc(eventDoc);
             } catch (error) {
                 console.error("Error deleting event:", error);
-                showToast("Could not delete event.");
+                window.showToast("Could not delete event.");
             }
         }
 
         document.getElementById('eventModal').addEventListener('click', (e) => {
             if (e.target === document.getElementById('eventModal')) {
-                closeModal();
+                window.closeModal();
             }
         });
 
-        document.getElementById('passwordModal').addEventListener('click', (e) => {
-            if (e.target === document.getElementById('passwordModal')) {
-                closePasswordModal();
+        document.getElementById('loginModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('loginModal')) {
+                window.closeLoginModal();
             }
         });
         
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 if (!document.getElementById('eventModal').classList.contains('hidden')) {
-                    closeModal();
+                    window.closeModal();
                 }
-                if (!document.getElementById('passwordModal').classList.contains('hidden')) {
-                    closePasswordModal();
+                if (!document.getElementById('loginModal').classList.contains('hidden')) {
+                    window.closeLoginModal();
                 }
             }
         });
