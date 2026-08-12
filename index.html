@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Calendar</title>
+    <title>Wildcat Robotics Calendar</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -36,7 +36,7 @@
         <div class="bg-white rounded-t-2xl shadow-sm border border-b-0 border-gray-200 p-6 flex flex-col sm:flex-row justify-between items-center gap-4">
             <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
                 <i class="fa-regular fa-calendar-days text-blue-600"></i>
-                My Calendar
+                Wildcat Robotics Calendar
             </h1>
             
             <!-- Navigation -->
@@ -112,16 +112,27 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                     </div>
                     
-                    <div class="flex gap-3">
-                        <input type="time" id="eventTime" 
-                            class="flex-grow px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-gray-700">
-                        <select id="eventColor" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                            <option value="blue">Blue</option>
-                            <option value="red">Red</option>
-                            <option value="green">Green</option>
-                            <option value="purple">Purple</option>
-                            <option value="orange">Orange</option>
-                        </select>
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label class="text-[10px] text-gray-500 uppercase font-semibold block mb-1">Start</label>
+                            <input type="time" id="eventStartTime" 
+                                class="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm text-gray-700">
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[10px] text-gray-500 uppercase font-semibold block mb-1">End</label>
+                            <input type="time" id="eventEndTime" 
+                                class="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm text-gray-700">
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[10px] text-gray-500 uppercase font-semibold block mb-1">Color</label>
+                            <select id="eventColor" class="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+                                <option value="blue">Blue</option>
+                                <option value="red">Red</option>
+                                <option value="green">Green</option>
+                                <option value="purple">Purple</option>
+                                <option value="orange">Orange</option>
+                            </select>
+                        </div>
                     </div>
 
                     <button type="submit" class="w-full mt-2 bg-blue-600 text-white font-medium py-2.5 rounded-lg hover:bg-blue-700 transition shadow-sm">
@@ -130,6 +141,34 @@
                 </form>
             </div>
         </div>
+    </div>
+
+    <!-- Password Modal -->
+    <div id="passwordModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300" id="passwordModalContent">
+            <div class="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="font-bold text-lg text-gray-900">Admin Access</h3>
+                <button onclick="closePasswordModal()" class="text-gray-400 hover:text-gray-700 p-2 rounded-full hover:bg-gray-200 transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4 bg-white">
+                <form id="passwordForm" onsubmit="verifyPassword(event)" class="flex flex-col gap-3">
+                    <input type="password" id="adminPasswordInput" placeholder="Enter password" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <p id="passwordError" class="text-red-500 text-sm hidden">Incorrect password.</p>
+                    <button type="submit" class="w-full mt-2 bg-blue-600 text-white font-medium py-2.5 rounded-lg hover:bg-blue-700 transition shadow-sm">
+                        Unlock
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toastNotification" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-3">
+        <i class="fa-solid fa-circle-exclamation text-red-400" id="toastIcon"></i>
+        <span id="toastMessage">Error message here</span>
     </div>
 
     <script type="module">
@@ -169,6 +208,24 @@
             green: 'bg-emerald-100 text-emerald-800 border-emerald-200',
             purple: 'bg-purple-100 text-purple-800 border-purple-200',
             orange: 'bg-orange-100 text-orange-800 border-orange-200'
+        };
+
+        // Helper functions for AM/PM Time formatting
+        window.formatAMPM = function(timeStr) {
+            if (!timeStr) return '';
+            const [hours24, minutes] = timeStr.split(':');
+            let hours = parseInt(hours24, 10);
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            return `${hours}:${minutes} ${ampm}`;
+        };
+
+        window.getTimeDisplay = function(start, end) {
+            if (start && end) return `${formatAMPM(start)} - ${formatAMPM(end)}`;
+            if (start) return formatAMPM(start);
+            if (end) return formatAMPM(end);
+            return '';
         };
 
         // Authentication Setup
@@ -219,7 +276,8 @@
                     events[dateString].push({
                         id: doc.id,
                         title: data.title,
-                        time: data.time,
+                        startTime: data.startTime || data.time, // Using data.time as fallback for any old events
+                        endTime: data.endTime,
                         color: data.color
                     });
                 });
@@ -239,30 +297,95 @@
         // Admin Toggle Logic
         document.getElementById('adminToggle').addEventListener('click', () => {
             if (!isAdmin) {
-                const password = prompt("Enter secret admin password (hint: type 'secret'):");
-                if (password === 'secret') {
-                    isAdmin = true;
-                    document.getElementById('adminToggle').innerHTML = '<i class="fa-solid fa-unlock text-blue-600"></i> Admin';
-                    document.getElementById('adminToggle').classList.add('bg-blue-50', 'text-blue-600', 'border-blue-200');
-                } else if (password !== null) {
-                    alert("Incorrect password.");
-                }
+                openPasswordModal();
             } else {
                 isAdmin = false;
                 document.getElementById('adminToggle').innerHTML = '<i class="fa-solid fa-lock"></i> Viewer';
                 document.getElementById('adminToggle').classList.remove('bg-blue-50', 'text-blue-600', 'border-blue-200');
-            }
-            renderCalendar();
-            
-            // Re-evaluate modal state if open
-            const modal = document.getElementById('eventModal');
-            if (!modal.classList.contains('hidden')) {
-                const dateString = document.getElementById('selectedDateInput').value;
-                const dateParts = dateString.split('-');
-                const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                openModal(dateString, parseInt(dateParts[2]), monthNames[parseInt(dateParts[1])-1], dateParts[0]);
+                renderCalendar();
+                
+                // Re-evaluate modal state if open
+                const modal = document.getElementById('eventModal');
+                if (!modal.classList.contains('hidden')) {
+                    const dateString = document.getElementById('selectedDateInput').value;
+                    const dateParts = dateString.split('-');
+                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                    openModal(dateString, parseInt(dateParts[2]), monthNames[parseInt(dateParts[1])-1], dateParts[0]);
+                }
             }
         });
+
+        window.openPasswordModal = function() {
+            const modal = document.getElementById('passwordModal');
+            const modalContent = document.getElementById('passwordModalContent');
+            document.getElementById('passwordError').classList.add('hidden');
+            document.getElementById('passwordForm').reset();
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            modalContent.classList.remove('scale-95');
+            modalContent.classList.add('scale-100');
+            
+            setTimeout(() => document.getElementById('adminPasswordInput').focus(), 100);
+        }
+
+        window.closePasswordModal = function() {
+            const modal = document.getElementById('passwordModal');
+            const modalContent = document.getElementById('passwordModalContent');
+            
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+
+        window.verifyPassword = function(e) {
+            e.preventDefault();
+            const input = document.getElementById('adminPasswordInput').value;
+            
+            if (input === 'D3mryJ@v@Sl1d3:)') {
+                isAdmin = true;
+                document.getElementById('adminToggle').innerHTML = '<i class="fa-solid fa-unlock text-blue-600"></i> Admin';
+                document.getElementById('adminToggle').classList.add('bg-blue-50', 'text-blue-600', 'border-blue-200');
+                closePasswordModal();
+                renderCalendar();
+                
+                // Re-evaluate modal state if open
+                const modal = document.getElementById('eventModal');
+                if (!modal.classList.contains('hidden')) {
+                    const dateString = document.getElementById('selectedDateInput').value;
+                    const dateParts = dateString.split('-');
+                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                    openModal(dateString, parseInt(dateParts[2]), monthNames[parseInt(dateParts[1])-1], dateParts[0]);
+                }
+            } else {
+                document.getElementById('passwordError').classList.remove('hidden');
+            }
+        }
+
+        window.showToast = function(message, isError = true) {
+            const toast = document.getElementById('toastNotification');
+            document.getElementById('toastMessage').textContent = message;
+            
+            const icon = document.getElementById('toastIcon');
+            if (isError) {
+                icon.className = 'fa-solid fa-circle-exclamation text-red-400';
+            } else {
+                icon.className = 'fa-solid fa-circle-check text-green-400';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
 
         // Navigation functions
         window.changeMonth = function(direction) {
@@ -326,7 +449,8 @@
                     const colorClasses = colorMap[evt.color] || colorMap.blue;
                     evtDiv.className = `text-[10px] sm:text-xs px-1.5 py-0.5 rounded border truncate font-medium ${colorClasses}`;
                     
-                    const timeText = evt.time ? `<span class="opacity-75 mr-1">${evt.time}</span>` : '';
+                    const timeDisplay = getTimeDisplay(evt.startTime, evt.endTime);
+                    const timeText = timeDisplay ? `<span class="opacity-75 mr-1 text-[9px] font-semibold">${timeDisplay}</span>` : '';
                     evtDiv.innerHTML = `${timeText}${evt.title}`;
                     eventsContainer.appendChild(evtDiv);
                 });
@@ -396,7 +520,7 @@
             } else {
                 noEventsMsg.style.display = 'none';
                 
-                const sortedEvents = [...dayEvents].sort((a, b) => (a.time || '24:00').localeCompare(b.time || '24:00'));
+                const sortedEvents = [...dayEvents].sort((a, b) => (a.startTime || '24:00').localeCompare(b.startTime || '24:00'));
 
                 sortedEvents.forEach(evt => {
                     const colorClasses = colorMap[evt.color] || colorMap.blue;
@@ -407,10 +531,11 @@
                     const info = document.createElement('div');
                     info.className = 'flex items-center gap-2 overflow-hidden';
                     
-                    if (evt.time) {
+                    const timeDisplay = getTimeDisplay(evt.startTime, evt.endTime);
+                    if (timeDisplay) {
                         const timeSpan = document.createElement('span');
                         timeSpan.className = 'font-bold text-xs opacity-75 whitespace-nowrap';
-                        timeSpan.textContent = evt.time;
+                        timeSpan.textContent = timeDisplay;
                         info.appendChild(timeSpan);
                     }
                     
@@ -439,9 +564,32 @@
             e.preventDefault();
             if (!isAdmin || !currentUser) return;
             
+            // Domain validation check for cloud writes
+            let isAllowedDomain = false;
+            const allowedOrigin = "https://garrettpearson1.github.io";
+            
+            try {
+                // Check if hosted directly on the domain
+                if (window.location.origin === allowedOrigin) {
+                    isAllowedDomain = true;
+                } 
+                // Check if embedded in an iframe on the domain
+                else if (window !== window.top && document.referrer.startsWith(allowedOrigin)) {
+                    isAllowedDomain = true;
+                }
+            } catch (err) {
+                console.warn("Domain check error", err);
+            }
+
+            if (!isAllowedDomain) {
+                showToast("Security: Cloud writes are only allowed from the official Wildcat Robotics website.", true);
+                return;
+            }
+
             const dateString = document.getElementById('selectedDateInput').value;
             const title = document.getElementById('eventTitle').value.trim();
-            const time = document.getElementById('eventTime').value;
+            const startTime = document.getElementById('eventStartTime').value;
+            const endTime = document.getElementById('eventEndTime').value;
             const color = document.getElementById('eventColor').value;
             
             if (!title) return;
@@ -451,7 +599,8 @@
                 await addDoc(eventsRef, {
                     date: dateString,
                     title,
-                    time,
+                    startTime,
+                    endTime,
                     color,
                     createdAt: new Date().toISOString()
                 });
@@ -461,19 +610,38 @@
                 document.getElementById('eventTitle').focus();
             } catch (error) {
                 console.error("Error adding event:", error);
-                alert("Could not save event. Check console.");
+                showToast("Could not save event. Check permissions.");
             }
         }
 
         window.deleteEvent = async function(eventId) {
             if (!isAdmin || !currentUser) return;
             
+            // Domain validation check for cloud writes
+            let isAllowedDomain = false;
+            const allowedOrigin = "https://garrettpearson1.github.io";
+            
+            try {
+                if (window.location.origin === allowedOrigin) {
+                    isAllowedDomain = true;
+                } else if (window !== window.top && document.referrer.startsWith(allowedOrigin)) {
+                    isAllowedDomain = true;
+                }
+            } catch (err) {
+                console.warn("Domain check error", err);
+            }
+
+            if (!isAllowedDomain) {
+                showToast("Security: Cloud writes are only allowed from the official Wildcat Robotics website.", true);
+                return;
+            }
+            
             try {
                 const eventDoc = doc(db, 'artifacts', appId, 'public', 'data', 'calendar_events', eventId);
                 await deleteDoc(eventDoc);
             } catch (error) {
                 console.error("Error deleting event:", error);
-                alert("Could not delete event.");
+                showToast("Could not delete event.");
             }
         }
 
@@ -482,10 +650,21 @@
                 closeModal();
             }
         });
+
+        document.getElementById('passwordModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('passwordModal')) {
+                closePasswordModal();
+            }
+        });
         
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !document.getElementById('eventModal').classList.contains('hidden')) {
-                closeModal();
+            if (e.key === 'Escape') {
+                if (!document.getElementById('eventModal').classList.contains('hidden')) {
+                    closeModal();
+                }
+                if (!document.getElementById('passwordModal').classList.contains('hidden')) {
+                    closePasswordModal();
+                }
             }
         });
         
