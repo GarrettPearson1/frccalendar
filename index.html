@@ -472,9 +472,8 @@
                     const colorClasses = colorMap[evt.color] || colorMap.blue;
                     evtDiv.className = `text-[8px] sm:text-xs px-1 sm:px-1.5 py-0.5 rounded border truncate font-medium ${colorClasses}`;
                     
-                    const timeDisplay = window.getTimeDisplay(evt.startTime, evt.endTime);
-                    const timeText = timeDisplay ? `<span class="opacity-75 mr-0.5 sm:mr-1 text-[8px] sm:text-[9px] font-semibold">${timeDisplay}</span>` : '';
-                    evtDiv.innerHTML = `${timeText}${evt.title}`;
+                    // Only show the event title on the month grid to save space
+                    evtDiv.innerHTML = evt.title;
                     eventsContainer.appendChild(evtDiv);
                 });
 
